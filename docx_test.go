@@ -2,6 +2,7 @@ package docx
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func TestReadDocxFromMemory(t *testing.T) {
 	d := loadFromMemory(testFile)
 
 	if d == nil {
-		t.Error("Doc should not be nill', got ", d)
+		t.Error("Doc should not be nil', got ", d)
 	}
 	d.Replace("document.", "line1\r\nline2", 1)
 	d.WriteToFile(testFileResult)
@@ -123,4 +124,14 @@ func TestReplaceFooter(t *testing.T) {
 	if !found {
 		t.Error("Expected 'newFooter', got ", d.headers)
 	}
+}
+
+func TestExtractText(t *testing.T) {
+	r, err := ReadDocxFile(testFile)
+	if err != nil {
+		t.Error("error in opening document")
+	}
+
+	fmt.Println(r.content)
+	r.Close()
 }
