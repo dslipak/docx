@@ -132,6 +132,6 @@ func TestExtractText(t *testing.T) {
 		t.Error("error in opening document")
 	}
 
-	fmt.Println(r.content)
+	fmt.Println(r.text)
 	r.Close()
 }
