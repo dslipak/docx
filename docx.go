@@ -4,8 +4,10 @@ import (
 	"archive/zip"
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -52,6 +54,7 @@ type ReplaceDocx struct {
 	links     string
 	headers   map[string]string
 	footers   map[string]string
+	text string
 }
 
 func (r *ReplaceDocx) Editable() *Docx {
@@ -61,6 +64,7 @@ func (r *ReplaceDocx) Editable() *Docx {
 		links:   r.links,
 		headers: r.headers,
 		footers: r.footers,
+		text: r.text,
 	}
 }
 
@@ -74,6 +78,7 @@ type Docx struct {
 	links   string
 	headers map[string]string
 	footers map[string]string
+	text string
 }
 
 func (d *Docx) ReplaceRaw(oldString string, newString string, num int) {
@@ -204,7 +209,13 @@ func ReadDocx(reader ZipData) (*ReplaceDocx, error) {
 	}
 
 	headers, footers, _ := readHeaderFooter(reader.files())
-	return &ReplaceDocx{zipReader: reader, content: content, links: links, headers: headers, footers: footers}, nil
+
+	text, err := readContentAsText(reader.files())
+	if err != nil {
+		return nil, err
+	}
+
+	return &ReplaceDocx{zipReader: reader, content: content, links: links, headers: headers, footers: footers, text: text}, nil
 }
 
 func readHeaderFooter(files []*zip.File) (headerText map[string]string, footerText map[string]string, err error) {
@@ -326,6 +337,45 @@ func retrieveHeaderFooterDoc(files []*zip.File) (headers []*zip.File, footers []
 		err = errors.New("headers[1-3].xml file not found and footers[1-3].xml file not found.")
 	}
 	return
+}
+
+func readContentAsText(files []*zip.File) (text string, err error) {
+	var documentFile *zip.File
+	documentFile, err = retrieveWordDoc(files)
+	if err != nil {
+		return text, err
+	}
+	var documentReader io.ReadCloser
+	documentReader, err = documentFile.Open()
+	if err != nil {
+		return text, err
+	}
+
+	text, err = wordDocToString(documentReader)
+
+	type Text struct {
+		Text []string `xml:"body>p>r>t"`
+	}
+
+	type Document struct {
+		XMLName xml.Name `xml:"document"`
+		Text
+	}
+
+	b := &Document{}
+	err = xml.Unmarshal([]byte(text), &b)
+	if err != nil {
+		fmt.Printf("error: %v", err)
+		return
+	}
+
+	out, err := json.Marshal(b.Text)
+	if err != nil {
+		fmt.Printf("error: %v", err)
+		return
+	}
+
+	return string(out), err
 }
 
 func streamToByte(stream io.Reader) []byte {
