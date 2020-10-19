@@ -162,6 +162,10 @@ func (d *Docx) Write(ioWriter io.Writer) (err error) {
 	return
 }
 
+func (d *Docx) GetText() string {
+	return d.text
+}
+
 func replaceHeaderFooter(headerFooter map[string]string, oldString string, newString string) (err error) {
 	oldString, err = encode(oldString)
 	if err != nil {
